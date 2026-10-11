@@ -1,0 +1,49 @@
+dataset:
+  name: eicu
+  label_names: [mortality, HF, AF, ARR]
+
+data:
+  processed_dir: data/eicu/processed
+  n_blocks: 6
+
+model:
+  num_features: 80
+  num_classes: 4
+  lstm_hidden: 128
+  lstm_layers: 1
+  gin_dims: [128, 64]
+  latent_dim: 32
+  k_neighbors: 10
+  graph_rank: 16
+  dropout: 0.3
+  pool_clusters: 16
+  node_readout_dim: 8
+  alpha_init: 0.2
+
+loss:
+  gamma_neg: 4
+  gamma_pos: 1
+  asl_clip: 0.05
+  alpha_contrast: 0.03
+  tau: 0.5
+  node_drop: 0.1
+  edge_drop: 0.1
+  lambda_reg: 0.3
+  mu_struct: 0.03
+  struct_decay: 0.95
+  struct_decay_start: 50
+  vgae_weight: 0.03
+  vgae_context: 24
+  beta_vgae: 1.0
+  kl_anneal_epochs: 10
+
+training:
+  batch_size: 32
+  grad_accum: 4
+  lr: 0.001
+  weight_decay: 1.0e-05
+  clip_norm: 2.0
+  max_epochs: 150
+  patience: 30
+  min_select_epoch: 10
+  lr_patience: 12

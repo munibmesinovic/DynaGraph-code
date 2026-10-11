@@ -1,0 +1,9 @@
+dataset:
+  label_names: [mortality, circulatory_failure]
+
+data:
+  raw_dir: data/hirid/raw
+  labels_path: data/hirid/raw/hirid_labels.csv
+  processed_dir: data/hirid/processed
+  seeds: [42, 1992, 1709, 250, 213]
+  n_hours: 24

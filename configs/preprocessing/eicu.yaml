@@ -1,0 +1,11 @@
+dataset:
+  label_names: [mortality, HF, AF, ARR]
+
+data:
+  raw_dir: data/eicu/raw
+  processed_dir: data/eicu/processed
+  periodic_path: data/eicu/raw/vitalPeriodic.csv.gz
+  periodic_features: [heartrate, sao2, respiration]
+  drop_features: [unittype_MICU, unittype_Med-Surg ICU, unittype_Neuro ICU]
+  seeds: [42, 1992, 1709, 250, 213]
+  n_hours: 24

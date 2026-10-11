@@ -1,0 +1,8 @@
+dataset:
+  label_names: [mort_icu, mort_hosp, Shock, Acute_cerebrovascular, Cardiac_dysrhythmias, CKD, CHF]
+
+data:
+  raw_dir: data/mimic/raw
+  processed_dir: data/mimic/processed
+  seeds: [42, 1992, 1709, 250, 213]
+  n_hours: 24
