@@ -28,7 +28,13 @@ def _or_flag(df, candidate_cols):
     return result.astype(float)
 
 
-def _diagnosis_flags(diagnoses, post_diagnoses):
+def _late_flags(diag_raw, label_cols):
+    late = diag_raw[diag_raw["diagnosisoffset"] > 300].rename_axis("patient")
+    hits = pd.DataFrame({name: late["diagnosisstring"].str.startswith(tuple(cols)) for name, cols in label_cols.items()})
+    return hits.groupby(level=0).any().astype(int)
+
+
+def _diagnosis_flags(diagnoses, diag_raw):
     mi_cols = [
         "cardiovascular|chest pain / ASHD|acute coronary syndrome|acute myocardial infarction (no ST elevation)",
         "cardiovascular|chest pain / ASHD|acute coronary syndrome|acute myocardial infarction (with ST elevation)",
@@ -40,7 +46,7 @@ def _diagnosis_flags(diagnoses, post_diagnoses):
         "Cardiovascular (R)|Myocardial Infarction|MI - remote",
         "Cardiovascular (R)|Myocardial Infarction|MI - within 6 months",
     ]
-    diagnoses = diagnoses.assign(MI=_or_flag(diagnoses, mi_cols))
+    diagnoses = diagnoses.assign(MI=_or_flag(diagnoses, mi_cols).astype(int))
 
     arr_cols = [
         "cardiovascular|arrhythmias",
@@ -48,34 +54,19 @@ def _diagnosis_flags(diagnoses, post_diagnoses):
         "cardiovascular|arrhythmias|sinus tachycardia",
         "cardiovascular|arrhythmias|ventricular tachycardia",
     ]
-    post_diagnoses = post_diagnoses.assign(ARR=_or_flag(post_diagnoses, arr_cols))
-
-    merged = post_diagnoses[["ARR"]].merge(diagnoses, left_index=True, right_index=True)
-    merged["ARR"] = merged["ARR"].astype(int)
-
     af_cols = [
         "cardiovascular|arrhythmias|atrial fibrillation",
         "cardiovascular|arrhythmias|atrial fibrillation|with controlled ventricular response",
         "cardiovascular|arrhythmias|atrial fibrillation|with rapid ventricular response",
     ]
-    post_diagnoses = post_diagnoses.assign(AF=_or_flag(post_diagnoses, af_cols))
-    merged = post_diagnoses[["AF"]].merge(merged, left_index=True, right_index=True)
-    merged["AF"] = merged["AF"].astype(int)
-
     hf_cols = [
         "cardiovascular|ventricular disorders|congestive heart failure",
         "cardiovascular|shock / hypotension|cardiogenic shock",
     ]
-    post_diagnoses = post_diagnoses.assign(HF=_or_flag(post_diagnoses, hf_cols))
-    merged = post_diagnoses[["HF"]].merge(merged, left_index=True, right_index=True)
-    merged["HF"] = merged["HF"].astype(int)
-
     pad_cols = ["cardiovascular|vascular disorders|peripheral vascular ischemia"]
-    post_diagnoses = post_diagnoses.assign(PAD=_or_flag(post_diagnoses, pad_cols))
-    merged = post_diagnoses[["PAD"]].merge(merged, left_index=True, right_index=True)
-    merged["PAD"] = merged["PAD"].astype(int)
-    merged["MI"] = merged["MI"].astype(int)
+    flags = _late_flags(diag_raw, {"PAD": pad_cols, "HF": hf_cols, "AF": af_cols, "ARR": arr_cols})
 
+    merged = diagnoses[["MI"]].merge(flags, left_index=True, right_index=True)
     return merged[["MI", "PAD", "HF", "AF", "ARR"]]
 
 
@@ -138,9 +129,10 @@ def run_pipeline(cfg):
     flats = flats[flats["> 89"] != 1].drop(columns=["> 89", "nullweight", "nullheight"])
 
     diagnoses = pd.read_csv(raw_dir / "preprocessed_diagnoses.csv", index_col="patient")
-    diag_post = pd.read_csv(raw_dir / "preprocessed_diagnoses_post.csv", index_col="patient")
+    diag_raw = pd.read_csv(raw_dir / "diagnosis.csv.gz", index_col="patientunitstayid",
+                           usecols=["patientunitstayid", "diagnosisoffset", "diagnosisstring"])
 
-    merged_diag = _diagnosis_flags(diagnoses, diag_post)
+    merged_diag = _diagnosis_flags(diagnoses, diag_raw)
     note(f"Diagnosis flags: {len(merged_diag)} stays")
 
     final = merged_diag.merge(labels, left_index=True, right_index=True)
