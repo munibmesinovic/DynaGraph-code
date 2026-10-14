@@ -12,6 +12,7 @@ import torch.nn as nn
 import yaml
 
 from .data import load_split, make_loaders
+from .importance import RunningImportance
 from .losses import DynaGraphLoss
 from .metrics import compute_metrics, predict, youden_thresholds
 from .model import build_model
@@ -84,6 +85,8 @@ def train(seed, cfg, device, out_dir, max_epochs=None):
     selector = CheckpointSelector(tc["patience"], tc["min_select_epoch"])
     ckpt_path = out_dir / f"best_model_seed{seed}.pt"
     history = []
+    importance = RunningImportance(model)
+    best_epoch = None
 
     for epoch in range(1, max_epochs + 1):
         model.train()
@@ -92,10 +95,13 @@ def train(seed, cfg, device, out_dir, max_epochs=None):
         for step, (X_b, y_b) in enumerate(train_dl):
             X_b, y_b = X_b.to(device), y_b.to(device)
             out = model(X_b)
+            out["G"].retain_grad()
             loss, terms = criterion(out, y_b, model, X_b, epoch)
             (loss / tc["grad_accum"]).backward()
+            importance.accumulate(out["G"])
             if (step + 1) % tc["grad_accum"] == 0 or (step + 1) == len(train_dl):
                 model.interp_matrix.update_from_gradients()
+                importance.step()
                 nn.utils.clip_grad_norm_(model.parameters(), tc["clip_norm"])
                 optimizer.step()
                 optimizer.zero_grad()
@@ -115,6 +121,8 @@ def train(seed, cfg, device, out_dir, max_epochs=None):
         save, stop = selector.step(epoch, val_m["auprc_weighted"])
         if save:
             torch.save(model.state_dict(), ckpt_path)
+            best_epoch = epoch
+        importance.end_epoch()
         print(f"epoch {epoch} loss {running / n_batches:.4f} val_auroc {val_m['auroc']:.4f} "
               f"val_auprc_w {val_m['auprc_weighted']:.4f}{' saved' if save else ''}", flush=True)
         if stop:
@@ -123,7 +131,9 @@ def train(seed, cfg, device, out_dir, max_epochs=None):
     (out_dir / "history.json").write_text(json.dumps(history, indent=1))
     if selector.best < 0:
         torch.save(model.state_dict(), ckpt_path)
+        best_epoch = len(history)
     model.load_state_dict(torch.load(ckpt_path, map_location=device, weights_only=True))
+    importance.save(out_dir, best_epoch, model.importance)
     metrics, predictions = evaluate_model(model, cfg, val_dl, test_dl)
     (out_dir / "metrics.json").write_text(json.dumps(metrics, indent=1, default=float))
     np.savez(out_dir / "predictions.npz", **predictions)

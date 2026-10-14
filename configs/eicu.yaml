@@ -9,7 +9,7 @@ data:
 model:
   num_features: 80
   num_classes: 4
-  lstm_hidden: 128
+  lstm_hidden: 64
   lstm_layers: 1
   gin_dims: [128, 64]
   latent_dim: 32
@@ -33,14 +33,14 @@ loss:
   struct_decay: 0.95
   struct_decay_start: 50
   vgae_weight: 0.03
-  vgae_context: 24
+  vgae_context: 8
   beta_vgae: 1.0
   kl_anneal_epochs: 10
 
 training:
   batch_size: 32
   grad_accum: 4
-  lr: 0.001
+  lr: 0.0003
   weight_decay: 1.0e-05
   clip_norm: 2.0
   max_epochs: 150

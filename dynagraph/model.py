@@ -180,6 +180,7 @@ class DynaGraph(nn.Module):
 
         self.graph_constructor = DynamicGraphConstructor(num_features, k_neighbors, graph_rank, num_groups, embed_dim)
         self.interp_matrix = InterpretabilityMatrix(num_features)
+        self.register_buffer("importance", torch.zeros(num_groups, num_features, num_features))
 
         self.gin_encoder = GINEncoder(embed_dim, gin_dims)
         self.mu_head = GINLayer(gin_dims[-1], latent_dim)
@@ -199,6 +200,9 @@ class DynaGraph(nn.Module):
 
     def prop_alpha(self):
         return torch.sigmoid(self.prop_alpha_logit)
+
+    def importance_weights(self):
+        return self.importance / (self.importance.amax(dim=(-2, -1), keepdim=True) + 1e-8)
 
     def embed_nodes(self, x):
         return self.temporal_encoder(x) + self.node_embedding[None, :, None, :]
@@ -233,7 +237,7 @@ class DynaGraph(nn.Module):
         A = self.graph_constructor(h)
         if edge_keep is not None:
             A = A * edge_keep
-        G = fuse_graph(A, self.interp_matrix())
+        G = fuse_graph(A, self.interp_matrix() + self.importance_weights())
 
         zs, mus, logvars, readout = self.encode_windows(h, G, x[:, :, -1])
         A_recon = []
@@ -248,6 +252,7 @@ class DynaGraph(nn.Module):
         return {
             "logits": self.classifier(z_final),
             "A": A,
+            "G": G,
             "z": zs,
             "mu": mus,
             "logvar": logvars,
