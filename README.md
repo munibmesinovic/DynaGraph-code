@@ -17,7 +17,7 @@ MIMIC-III, eICU, and HiRID are available on PhysioNet, and EHRSHOT from Stanford
 pip install -r requirements.txt
 python -m dynagraph.preprocess --dataset mimic --config configs/preprocessing/mimic.yaml
 bash run_seeds.sh mimic
-python -m dynagraph.aggregate --runs runs
+python -m dynagraph.aggregate --runs runs --datasets mimic
 ```
 
-Datasets are `mimic`, `eicu`, `hirid`, and `ehrshot`. `run_seeds.sh` trains the five seeds used in the paper (42, 1992, 1709, 250, and 213), and `dynagraph.aggregate` prints the mean and standard deviation of the test AUROC, AUPRC, F1, and sensitivity for each dataset.
+The code was run with Python 3.10. Datasets are `mimic`, `eicu`, `hirid`, and `ehrshot`. `run_seeds.sh` trains the five seeds used in the paper (42, 1992, 1709, 250, and 213), and `dynagraph.aggregate` prints the mean and standard deviation of the test AUROC, AUPRC, F1, and sensitivity for each dataset.

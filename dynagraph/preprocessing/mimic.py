@@ -117,6 +117,7 @@ def run_pipeline(cfg):
     cohort_icustays = set(patients["icustay_id"].values)
 
     pheno = pd.read_csv(pheno_path)
+    pheno = pheno.rename(columns={"Congestive heart failure; nonhypertensive": "Congestive heart failure- nonhypertensive"})
     pheno = pheno[["icustay_id"] + PHENO_LABEL_COLS].copy()
     patients = patients.merge(pheno, on="icustay_id", how="inner")
     cohort_icustays = set(patients["icustay_id"].values)
